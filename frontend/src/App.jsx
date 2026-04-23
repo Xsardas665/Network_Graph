@@ -400,68 +400,82 @@ function App() {
     const hasVlan = !!node.cmdb?.vlan;
 
     if (hasIp || hasVlan) {
-      const badgeY = y + 6 / globalScale;
-      const badgeH = 14 / globalScale;
+      const badgeY = y + 5 / globalScale;
+      const badgeH = 15 / globalScale;
       
       if (hasIp && hasVlan) {
-        // Render both side by side
-        const ipW = 60 / globalScale;
-        const vlanW = 46 / globalScale;
-        const gap = 4 / globalScale;
-        const totalW = ipW + vlanW + gap;
+        // Unified Segmented Badge
+        const ipW = 62 / globalScale;
+        const vlanW = 42 / globalScale;
+        const totalW = ipW + vlanW;
+        const badgeX = x - totalW / 2;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(badgeX, badgeY, totalW, badgeH, 4 / globalScale);
+        ctx.clip(); 
+
+        // IP Section (Left)
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(badgeX, badgeY, ipW, badgeH);
+
+        // VLAN Section (Right)
+        ctx.fillStyle = 'rgba(225,29,72,0.8)'; // Modern vibrant rose
+        ctx.fillRect(badgeX + ipW, badgeY, vlanW, badgeH);
         
-        const ipX = x - totalW/2 + ipW/2;
-        const vlanX = x + totalW/2 - vlanW/2;
+        ctx.restore();
 
-        // IP Badge
+        // Stroke the unified pill
         ctx.beginPath();
-        ctx.roundRect(ipX - ipW/2, badgeY, ipW, badgeH, 3/globalScale);
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.roundRect(badgeX, badgeY, totalW, badgeH, 4 / globalScale);
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1 / globalScale;
         ctx.stroke();
-        ctx.font = `600 ${7.5 / globalScale}px 'JetBrains Mono'`;
+
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillText(node.cmdb.ip, ipX, badgeY + 8/globalScale);
-
-        // VLAN Badge
-        ctx.beginPath();
-        ctx.roundRect(vlanX - vlanW/2, badgeY, vlanW, badgeH, 3/globalScale);
-        ctx.fillStyle = 'rgba(244,63,94,0.15)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(244,63,94,0.4)';
-        ctx.stroke();
-        ctx.fillStyle = '#f43f5e';
-        ctx.fillText(`VLAN ${node.cmdb.vlan}`, vlanX, badgeY + 8/globalScale);
+        ctx.textBaseline = 'middle';
+        ctx.font = `600 ${7.5 / globalScale}px 'JetBrains Mono'`;
+        
+        // Text
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillText(node.cmdb.ip, badgeX + ipW/2, badgeY + badgeH/2);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(`VLAN ${node.cmdb.vlan}`, badgeX + ipW + vlanW/2, badgeY + badgeH/2);
 
       } else if (hasIp) {
         // Only IP
         const badgeW = 86 / globalScale;
         ctx.beginPath();
-        ctx.roundRect(x - badgeW/2, badgeY, badgeW, badgeH, 3/globalScale);
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.roundRect(x - badgeW/2, badgeY, badgeW, badgeH, 4/globalScale);
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1 / globalScale;
         ctx.stroke();
+        
         ctx.font = `600 ${8 / globalScale}px 'JetBrains Mono'`;
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillText(node.cmdb.ip, x, badgeY + 8/globalScale);
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillText(node.cmdb.ip, x, badgeY + badgeH/2);
 
       } else if (hasVlan) {
         // Only VLAN
-        const badgeW = 40 / globalScale;
+        const badgeW = 54 / globalScale;
         ctx.beginPath();
-        ctx.roundRect(x - badgeW/2, badgeY, badgeW, badgeH, 3/globalScale);
-        ctx.fillStyle = 'rgba(244,63,94,0.15)';
+        ctx.roundRect(x - badgeW/2, badgeY, badgeW, badgeH, 4/globalScale);
+        ctx.fillStyle = 'rgba(225,29,72,0.8)';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(244,63,94,0.4)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 1 / globalScale;
         ctx.stroke();
+        
         ctx.font = `600 ${8 / globalScale}px 'JetBrains Mono'`;
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#f43f5e';
-        ctx.fillText(`VLAN ${node.cmdb.vlan}`, x, badgeY + 8/globalScale);
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(`VLAN ${node.cmdb.vlan}`, x, badgeY + badgeH/2);
       }
     }
   }, [hoverNode, selectedNodeId]);
