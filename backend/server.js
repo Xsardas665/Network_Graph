@@ -116,6 +116,26 @@ app.delete('/api/links/:id', (req, res) => {
     res.status(204).send();
 });
 
+// UPDATE link
+app.put('/api/links/:id', (req, res) => {
+    const data = readData();
+    const linkId = req.params.id;
+    const linkIndex = data.links.findIndex(l => l.id === linkId);
+
+    if (linkIndex === -1) {
+        return res.status(404).json({ error: 'Link not found' });
+    }
+
+    data.links[linkIndex] = {
+        ...data.links[linkIndex],
+        ...req.body,
+        id: linkId
+    };
+
+    writeData(data);
+    res.json(data.links[linkIndex]);
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

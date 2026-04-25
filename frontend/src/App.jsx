@@ -226,11 +226,12 @@ function App() {
 
   // Update Node (Save IP, Interfaces etc.)
   const handleUpdateNode = async (updatedNode) => {
+    const { __indexColor, index, x, y, vx, vy, fx, fy, __width, __height, __ports, ...sanitizedNode } = updatedNode;
     try {
-      const response = await fetch(`/api/nodes/${updatedNode.id}`, {
+      const response = await fetch(`/api/nodes/${sanitizedNode.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedNode),
+        body: JSON.stringify(sanitizedNode),
       });
       if (response.ok) {
         showToast('Node details updated!');
@@ -250,6 +251,32 @@ function App() {
       fetchNetwork();
     } catch (error) {
       console.error('Error deleting node:', error);
+    }
+  };
+  // Update Link
+  const handleUpdateLink = async (linkId, updatedLink) => {
+    const sanitizedLink = {
+      ...updatedLink,
+      source: typeof updatedLink.source === 'object' ? updatedLink.source.id : updatedLink.source,
+      target: typeof updatedLink.target === 'object' ? updatedLink.target.id : updatedLink.target
+    };
+    delete sanitizedLink.__indexColor;
+    delete sanitizedLink.__controlPoints;
+    delete sanitizedLink.__photons;
+    delete sanitizedLink.index;
+
+    try {
+      const response = await fetch(`/api/links/${linkId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sanitizedLink),
+      });
+      if (response.ok) {
+        showToast('Connection updated!');
+        fetchNetwork();
+      }
+    } catch (error) {
+      console.error('Error updating link:', error);
     }
   };
 
@@ -291,11 +318,13 @@ function App() {
     const node = data.nodes.find(n => n.id === editingCmdbId);
     if (!node) return;
 
+    const { __indexColor, index, x, y, vx, vy, fx, fy, __width, __height, __ports, ...sanitizedNode } = node;
+
     try {
       const response = await fetch(`/api/nodes/${editingCmdbId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...node, cmdb: tempCmdbData })
+        body: JSON.stringify({ ...sanitizedNode, cmdb: tempCmdbData })
       });
 
       if (response.ok) {
@@ -654,6 +683,9 @@ function App() {
                   {data.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
                 </select>
               </div>
+              <select style={{ width: '100%', marginTop: '8px', padding: '6px' }} value={newLink.type} onChange={e => setNewLink({...newLink, type: e.target.value})}>
+                {Object.keys(LINK_TYPES).map(type => <option key={type} value={type}>{type}</option>)}
+              </select>
               <button className="secondary" style={{ marginTop: '8px', padding: '8px' }} onClick={handleAddLink}>Connect Devices</button>
             </div>
           </div>
@@ -719,6 +751,7 @@ function App() {
             onUpdate={handleUpdateNode}
             onDelete={handleDeleteNode}
             onDeleteLink={handleDeleteLink}
+            onUpdateLink={handleUpdateLink}
           />
         </aside>
       )}
@@ -906,7 +939,7 @@ function App() {
 }
 
 // Sub-component for Device Details
-function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink }) {
+function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink, onUpdateLink }) {
   const [activeTab, setActiveTab] = useState('network'); // 'network' or 'cmdb'
   
   // Ensure we always have an absolute copy with initialized arrays and objects
@@ -1094,8 +1127,23 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink 
                         <span style={{ margin: '0 8px', color: '#475569' }}>↔</span>
                         <span>{otherNode.name || otherNodeId}</span>
                         <span style={{ marginLeft: '4px', color: '#64748b', fontSize: '0.65rem' }}>({theirPort || '?'})</span>
-                        <div style={{ marginTop: '4px', color: LINK_TYPES[link.type]?.color || '#94a3b8', fontSize: '0.65rem', textTransform: 'capitalize' }}>
-                          {link.type || 'Connection'}
+                        <div style={{ marginTop: '4px', color: LINK_TYPES[link.type]?.color || '#94a3b8', fontSize: '0.65rem' }}>
+                          <select 
+                            value={link.type || 'RJ45 cat6'}
+                            onChange={(e) => onUpdateLink(link.id, { ...link, type: e.target.value })}
+                            style={{ 
+                              background: 'transparent', 
+                              border: '1px solid rgba(255,255,255,0.2)', 
+                              color: 'inherit',
+                              fontSize: '0.65rem',
+                              padding: '2px 4px',
+                              borderRadius: '4px',
+                              outline: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {Object.keys(LINK_TYPES).map(t => <option key={t} value={t} style={{color: '#000'}}>{t}</option>)}
+                          </select>
                         </div>
                       </div>
                       <button 
