@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { Plus, Trash2, Network, Share2, Activity, Search, Server, Cpu, Database, Shield, Monitor, Box, Layers, Settings2, Globe, Wifi, Hexagon, Tag, Barcode, MapPin, Zap, Calendar, Edit3, Check, X, Tv, Gamepad2, Plug, Cloud } from 'lucide-react';
+import { Plus, Trash2, Network, Share2, Activity, Search, Server, Cpu, Database, Shield, Monitor, Box, Layers, Settings2, Globe, Wifi, Hexagon, Tag, Barcode, MapPin, Zap, Calendar, Edit3, Check, X, Tv, Gamepad2, Plug, Cloud, Lightbulb } from 'lucide-react';
 
 const NODE_TYPES = {
   Internet: { color: '#fbbf24', icon: Globe },
@@ -14,6 +14,7 @@ const NODE_TYPES = {
   PC: { color: '#3b82f6', icon: Monitor },
   'Stacja Dokująca': { color: '#64748b', icon: Plug },
   'Maszyna Wirtualna': { color: '#c084fc', icon: Cloud },
+  IOT: { color: '#f59e0b', icon: Lightbulb },
 };
 
 const LINK_TYPES = {
@@ -24,6 +25,7 @@ const LINK_TYPES = {
   'RJ45 cat8': { color: '#8b5cf6', width: 3, dash: null, shadow: '#8b5cf666' },
   'logical': { color: '#94a3b8', width: 1.5, dash: [4, 4], shadow: null },
   'wifi': { color: '#ec4899', width: 1.5, dash: [2, 4], shadow: '#ec489944' },
+  'Sieć Zigbee': { color: '#10b981', width: 1.5, dash: [3, 3], shadow: '#10b98144' },
 };
 
 function App() {
