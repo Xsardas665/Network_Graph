@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { Plus, Trash2, Network, Share2, Activity, Search, Server, Cpu, Database, Shield, Monitor, Box, Layers, Settings2, Globe, Wifi, Hexagon, Tag, Barcode, MapPin, Zap, Calendar, Edit3, Check, X } from 'lucide-react';
+import { Plus, Trash2, Network, Share2, Activity, Search, Server, Cpu, Database, Shield, Monitor, Box, Layers, Settings2, Globe, Wifi, Hexagon, Tag, Barcode, MapPin, Zap, Calendar, Edit3, Check, X, Tv, Gamepad2, Plug, Cloud } from 'lucide-react';
 
 const NODE_TYPES = {
   Internet: { color: '#fbbf24', icon: Globe },
@@ -9,6 +9,11 @@ const NODE_TYPES = {
   'Access Point': { color: '#ec4899', icon: Wifi },
   Server: { color: '#10b981', icon: Database },
   Container: { color: '#0ea5e9', icon: Box },
+  Telewizor: { color: '#f43f5e', icon: Tv },
+  Konsola: { color: '#14b8a6', icon: Gamepad2 },
+  PC: { color: '#3b82f6', icon: Monitor },
+  'Stacja Dokująca': { color: '#64748b', icon: Plug },
+  'Maszyna Wirtualna': { color: '#c084fc', icon: Cloud },
 };
 
 const LINK_TYPES = {
@@ -346,8 +351,15 @@ function App() {
       return;
     }
 
-    // Node Dimensions (SLIGHTLY REDUCED)
-    const width = 110 / globalScale;
+    // Node Dimensions (Dynamic Width based on text length)
+    const nameFontSize = 11 / globalScale;
+    ctx.font = `700 ${nameFontSize}px 'Inter'`;
+    const textWidth = ctx.measureText(name).width;
+    
+    const minWidth = 110 / globalScale;
+    const padding = 24 / globalScale; // 12px padding on each side
+    const width = Math.max(minWidth, textWidth + padding);
+    
     const headerHeight = 28 / globalScale;
     const totalHeight = 64 / globalScale;
     
@@ -383,7 +395,7 @@ function App() {
     ctx.lineWidth = 0.5/globalScale;
     ctx.stroke();
 
-    const nameFontSize = 11 / globalScale;
+    // ctx.font is already set earlier, but setting again is safe
     ctx.font = `700 ${nameFontSize}px 'Inter'`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -563,8 +575,8 @@ function App() {
               const showCompactCard = globalScale > 0.4;
               ctx.fillStyle = color;
               if (showCompactCard) {
-                const width = 110 / globalScale;
-                const totalHeight = 64 / globalScale;
+                const width = node.__width || (110 / globalScale);
+                const totalHeight = node.__height || (64 / globalScale);
                 ctx.fillRect(node.x - width / 2, node.y - totalHeight / 2, width, totalHeight);
               } else {
                 ctx.beginPath();
