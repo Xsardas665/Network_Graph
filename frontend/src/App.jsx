@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
+import { forceY, forceCollide } from 'd3-force';
 import { Plus, Trash2, Network, Share2, Activity, Search, Server, Cpu, Database, Shield, Monitor, Box, Layers, Settings2, Globe, Wifi, Hexagon, Tag, Barcode, MapPin, Zap, Calendar, Edit3, Check, X, Tv, Gamepad2, Plug, Cloud, Lightbulb, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 
 const NODE_TYPES = {
@@ -7,6 +8,7 @@ const NODE_TYPES = {
   Router: { color: '#6366f1', icon: Network },
   Switch: { color: '#8b5cf6', icon: Cpu },
   'Access Point': { color: '#ec4899', icon: Wifi },
+  'Sieć Wifi': { color: '#f472b6', icon: Wifi },
   Server: { color: '#10b981', icon: Database },
   Container: { color: '#0ea5e9', icon: Box },
   Telewizor: { color: '#f43f5e', icon: Tv },
@@ -34,7 +36,7 @@ function App() {
   console.log('--- NetVis Logic+ Dashboard Version 2.0.1 (Stable) ---');
   const [data, setData] = useState({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
-  const [newNode, setNewNode] = useState({ name: '', type: 'Router', parentId: '', interfaces: [] });
+  const [newNode, setNewNode] = useState({ name: '', type: 'Router', parentId: '', level: 0, interfaces: [] });
   const [newLink, setNewLink] = useState({ source: '', target: '', sourceInterface: '', targetInterface: '', label: '', type: 'RJ45 cat6' });
   const [searchTerm, setSearchTerm] = useState('');
   const [hoverNode, setHoverNode] = useState(null);
@@ -46,6 +48,8 @@ function App() {
   const [tempInterface, setTempInterface] = useState('');
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [activeLeftTab, setActiveLeftTab] = useState('ops');
+  const [levelDistance, setLevelDistance] = useState(180);
+  const [showBackground, setShowBackground] = useState(true);
   const fgRef = useRef();
   
   // Graph sizing
@@ -109,11 +113,38 @@ function App() {
       if (fg.d3Force('charge')) {
         fg.d3Force('charge').strength(node => {
           const links = nodeLinkCount[node.id] || 0;
-          // Bazowe odpychanie -1000, dodatkowo -800 za każde połączenie
-          return -1000 - (links * 800);
+          const level = node.level || 0;
+          // Urządzenia na niższych poziomach (Core/Router) odpychają mocniej, aby stworzyć przestrzeń
+          // Level 0: dodatkowe -4000 odpychania, Level 10: 0 dodatkowego odpychania
+          const levelRepulsion = (10 - level) * 400;
+          return -1200 - (links * 600) - levelRepulsion;
         });
       }
-      if (fg.d3Force('link')) fg.d3Force('link').distance(250);
+      if (fg.d3Force('link')) {
+        fg.d3Force('link')
+          .distance(200)
+          .strength(link => {
+            // Fizyczne połączenia (RJ45, światłowód) są sztywniejsze (1.0), co zapobiega ich plątaniu
+            // Połączenia bezprzewodowe są luźniejsze (0.2)
+            const type = (link.type || '').toLowerCase();
+            if (type.includes('rj45') || type.includes('światłowód')) return 1.0;
+            if (type.includes('wifi') || type.includes('logical')) return 0.2;
+            return 0.5;
+          });
+      }
+
+      // Dodajemy siłę kolizji (forceCollide), aby węzły nie nachodziły na siebie
+      fg.d3Force('collide', forceCollide().radius(80).iterations(2));
+      
+      // Usuwamy siłę Y (poziomy pionowe)
+      fg.d3Force('y', null);
+
+      // Re-enable center force
+      const centerForce = fg.d3Force('center');
+      if (!centerForce) {
+         // If center force was nulled, we might need to re-add it or just let it be
+         // Standard force-graph handles this, but since we set it to null:
+      }
 
       // Basic reheat without experimental methods
       if (fg.zoomToFit) fg.zoomToFit(400); 
@@ -212,7 +243,7 @@ function App() {
         }),
       });
       if (response.ok) {
-        setNewNode({ name: '', type: 'Router', parentId: '', interfaces: [] });
+        setNewNode({ name: '', type: 'Router', parentId: '', level: 0, interfaces: [] });
         showToast('Device added successfully!');
         fetchNetwork();
       }
@@ -629,6 +660,11 @@ function App() {
     }
   }, [hoverNode]);
 
+  // Paint Background (Disabled as per request to move away from rigid levels)
+  const paintBackground = useCallback((ctx, globalScale) => {
+    return;
+  }, []);
+
   return (
     <div className="app-container">
       {notification && <div className="toast">{notification}</div>}
@@ -677,7 +713,11 @@ function App() {
             }}
             onBackgroundClick={() => setSelectedNodeId(null)}
             linkColor={link => (hoverNode === link.source.id || hoverNode === link.target.id) ? '#ffffff' : (LINK_TYPES[link.type]?.color || 'rgba(255,255,255,0.3)')}
-            linkCurvature={0}
+            linkCurvature={link => {
+              const type = (link.type || '').toLowerCase();
+              // WiFi i logiczne krawędzie są lekko zakrzywione, żeby nie nakładać się na sztywne linie RJ45
+              return (type.includes('wifi') || type.includes('logical')) ? 0.25 : 0;
+            }}
             linkDirectionalParticles={link => link.type === 'światłowód' ? 6 : 2}
             linkDirectionalParticleWidth={link => link.type === 'światłowód' ? 2.5 : 1.5}
             linkDirectionalParticleSpeed={link => link.type === 'światłowód' ? 0.008 : 0.004}
@@ -755,6 +795,18 @@ function App() {
                       <option value="">No parent...</option>
                       {parentCandidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
+                  </div>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      <span>HIERARCHY LEVEL: {newNode.level || 0}</span>
+                    </div>
+                    <input 
+                      type="range" min="0" max="10" step="1"
+                      value={newNode.level || 0}
+                      onChange={e => setNewNode({...newNode, level: parseInt(e.target.value)})}
+                      style={{ width: '100%', accentColor: 'var(--primary)' }}
+                    />
                   </div>
                   <button onClick={handleAddNode}>Create Device</button>
                 </div>
@@ -1038,6 +1090,7 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
   // Ensure we always have an absolute copy with initialized arrays and objects
   const [editedNode, setEditedNode] = useState(() => ({
     ...node,
+    level: node?.level || 0,
     interfaces: node?.interfaces || [],
     cmdb: node?.cmdb || {
       assetTag: '',
@@ -1056,6 +1109,7 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
     if (node) {
       setEditedNode({
         ...node,
+        level: node.level || 0,
         interfaces: node.interfaces || [],
         cmdb: node.cmdb || {
           assetTag: '',
@@ -1193,7 +1247,20 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
             </button>
           </div>
 
-          <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
+          <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>
+              <span>HIERARCHY LEVEL</span>
+              <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{editedNode.level || 0}</span>
+            </div>
+            <input 
+              type="range" min="0" max="10" step="1"
+              value={editedNode.level || 0}
+              onChange={e => setEditedNode({...editedNode, level: parseInt(e.target.value)})}
+              style={{ width: '100%', accentColor: 'var(--primary)', marginBottom: '12px' }}
+            />
+          </div>
+
+          <div style={{ marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
             <h3 style={{ fontSize: '0.9rem', marginBottom: '12px', color: '#94a3b8' }}>Active Connections</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {links.filter(l => {
