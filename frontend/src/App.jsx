@@ -649,7 +649,7 @@ function App() {
         <div className="bottom-panel">
           {/* Column 1: Operations */}
           <div className="panel-col">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <Layers size={18} color="var(--primary)" />
               <h3 style={{ margin: 0, fontSize: '0.8rem' }}>Infrastructure Ops</h3>
             </div>
@@ -659,7 +659,6 @@ function App() {
                 value={newNode.name} 
                 onChange={e => setNewNode({...newNode, name: e.target.value})}
                 placeholder="Device name..."
-                style={{ padding: '8px 12px' }}
               />
             </div>
             
@@ -672,9 +671,9 @@ function App() {
                 {parentCandidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
-            <button style={{ marginTop: '12px', padding: '8px' }} onClick={handleAddNode}>Create Device</button>
+            <button style={{ marginTop: '12px' }} onClick={handleAddNode}>Create Device</button>
 
-            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <select value={newLink.source} onChange={e => setNewLink({...newLink, source: e.target.value})}>
                   <option value="">Source...</option>
@@ -685,10 +684,10 @@ function App() {
                   {data.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
                 </select>
               </div>
-              <select style={{ width: '100%', marginTop: '8px', padding: '6px' }} value={newLink.type} onChange={e => setNewLink({...newLink, type: e.target.value})}>
+              <select style={{ width: '100%', marginTop: '8px' }} value={newLink.type} onChange={e => setNewLink({...newLink, type: e.target.value})}>
                 {Object.keys(LINK_TYPES).map(type => <option key={type} value={type}>{type}</option>)}
               </select>
-              <button className="secondary" style={{ marginTop: '8px', padding: '8px' }} onClick={handleAddLink}>Connect Devices</button>
+              <button className="secondary" style={{ marginTop: '8px' }} onClick={handleAddLink}>Connect Devices</button>
             </div>
           </div>
 

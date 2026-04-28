@@ -59,7 +59,7 @@ body {
 }
 
 .panel-col {
-  padding: 16px;
+  padding: 12px;
   overflow-y: auto;
   border-right: 1px solid var(--border);
 }
@@ -122,14 +122,14 @@ h1, h3 {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 label {
@@ -137,18 +137,18 @@ label {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 input, select {
   width: 100%;
   background: rgba(2, 6, 23, 0.4);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 14px;
+  border-radius: 8px;
+  padding: 6px 10px;
   color: white;
   font-family: inherit;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   outline: none;
   transition: all 0.3s ease;
 }
@@ -164,16 +164,16 @@ button {
   background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   color: white;
   border: none;
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 8px;
+  padding: 8px;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 button:hover {
