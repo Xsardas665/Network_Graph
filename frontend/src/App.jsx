@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { Plus, Trash2, Network, Share2, Activity, Search, Server, Cpu, Database, Shield, Monitor, Box, Layers, Settings2, Globe, Wifi, Hexagon, Tag, Barcode, MapPin, Zap, Calendar, Edit3, Check, X, Tv, Gamepad2, Plug, Cloud, Lightbulb } from 'lucide-react';
+import { Plus, Trash2, Network, Share2, Activity, Search, Server, Cpu, Database, Shield, Monitor, Box, Layers, Settings2, Globe, Wifi, Hexagon, Tag, Barcode, MapPin, Zap, Calendar, Edit3, Check, X, Tv, Gamepad2, Plug, Cloud, Lightbulb, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 
 const NODE_TYPES = {
   Internet: { color: '#fbbf24', icon: Globe },
@@ -91,9 +91,25 @@ function App() {
   useEffect(() => {
     const fg = fgRef.current;
     if (fg) {
-      // Use existing forces or defaults
-      if (fg.d3Force('charge')) fg.d3Force('charge').strength(-1000);
-      if (fg.d3Force('link')) fg.d3Force('link').distance(180);
+      // Oblicz ilość połączeń dla każdego węzła
+      const nodeLinkCount = {};
+      if (data && data.links) {
+        data.links.forEach(link => {
+          const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+          const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+          nodeLinkCount[sourceId] = (nodeLinkCount[sourceId] || 0) + 1;
+          nodeLinkCount[targetId] = (nodeLinkCount[targetId] || 0) + 1;
+        });
+      }
+
+      if (fg.d3Force('charge')) {
+        fg.d3Force('charge').strength(node => {
+          const links = nodeLinkCount[node.id] || 0;
+          // Bazowe odpychanie -1000, dodatkowo -800 za każde połączenie
+          return -1000 - (links * 800);
+        });
+      }
+      if (fg.d3Force('link')) fg.d3Force('link').distance(250);
 
       // Basic reheat without experimental methods
       if (fg.zoomToFit) fg.zoomToFit(400); 
@@ -594,6 +610,20 @@ function App() {
       <div className="main-content-wrapper">
         {/* Main Graph View - Now Top Floor */}
         <main className="main-view" ref={mainRef} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          
+          {/* Map Controls */}
+          <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button className="secondary" style={{ padding: '8px', width: 'auto', borderRadius: '8px' }} onClick={() => fgRef.current?.zoom(fgRef.current.zoom() * 1.5, 400)} title="Zoom In">
+              <ZoomIn size={18} />
+            </button>
+            <button className="secondary" style={{ padding: '8px', width: 'auto', borderRadius: '8px' }} onClick={() => fgRef.current?.zoom(fgRef.current.zoom() / 1.5, 400)} title="Zoom Out">
+              <ZoomOut size={18} />
+            </button>
+            <button className="secondary" style={{ padding: '8px', width: 'auto', borderRadius: '8px' }} onClick={() => fgRef.current?.zoomToFit(400, 50)} title="Fit to View">
+              <Maximize size={18} />
+            </button>
+          </div>
+
           <ForceGraph2D
             width={graphSize.width}
             height={graphSize.height}
@@ -622,7 +652,7 @@ function App() {
             onBackgroundClick={() => setSelectedNodeId(null)}
             linkColor={link => (hoverNode === link.source.id || hoverNode === link.target.id) ? '#ffffff' : (LINK_TYPES[link.type]?.color || 'rgba(255,255,255,0.3)')}
             linkCurvature={0}
-            linkDirectionalParticles={link => link.type === 'światłowód' ? 6 : (link.type?.includes('cat') ? 2 : 0)}
+            linkDirectionalParticles={link => link.type === 'światłowód' ? 6 : 2}
             linkDirectionalParticleWidth={link => link.type === 'światłowód' ? 2.5 : 1.5}
             linkDirectionalParticleSpeed={link => link.type === 'światłowód' ? 0.008 : 0.004}
             linkLineDash={link => LINK_TYPES[link.type]?.dash || null}
@@ -635,8 +665,8 @@ function App() {
             d3AlphaDecay={0.02}
             d3VelocityDecay={0.3}
             warmupTicks={100}
-            enableZoomInteraction={false}
-            enablePanInteraction={false}
+            enableZoomInteraction={true}
+            enablePanInteraction={true}
             onEngineStop={() => {
               if (fgRef.current) {
                 fgRef.current.zoomToFit(400, 50); // fit to screen with 50px padding, 400ms transition
