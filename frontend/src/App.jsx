@@ -15,6 +15,7 @@ const NODE_TYPES = {
   'Stacja Dokująca': { color: '#64748b', icon: Plug },
   'Maszyna Wirtualna': { color: '#c084fc', icon: Cloud },
   IOT: { color: '#f59e0b', icon: Lightbulb },
+  Usługa: { color: '#f472b6', icon: Hexagon },
 };
 
 const LINK_TYPES = {
@@ -26,6 +27,7 @@ const LINK_TYPES = {
   'logical': { color: '#94a3b8', width: 1.5, dash: [4, 4], shadow: null },
   'wifi': { color: '#ec4899', width: 1.5, dash: [2, 4], shadow: '#ec489944' },
   'Sieć Zigbee': { color: '#10b981', width: 1.5, dash: [3, 3], shadow: '#10b98144' },
+  'Control': { color: '#f43f5e', width: 2, dash: [6, 4], glow: true, shadow: '#f43f5e88' },
 };
 
 function App() {
@@ -42,6 +44,8 @@ function App() {
   const [tempCmdbData, setTempCmdbData] = useState(null);
   const [notification, setNotification] = useState(null);
   const [tempInterface, setTempInterface] = useState('');
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
+  const [activeLeftTab, setActiveLeftTab] = useState('ops');
   const fgRef = useRef();
   
   // Graph sizing
@@ -116,8 +120,14 @@ function App() {
     }
   }, [data]);
 
+  // Auto-fill Link Source when a node is clicked
   useEffect(() => {
-    // Prevent browser zoom (Ctrl+Wheel / Pinch)
+    if (selectedNodeId) {
+      setNewLink(prev => ({ ...prev, source: selectedNodeId }));
+    }
+  }, [selectedNodeId]);
+
+  useEffect(() => {
     const handleWheel = (e) => {
       if (e.ctrlKey) {
         e.preventDefault();
@@ -582,21 +592,37 @@ function App() {
     ctx.setLineDash([]); // Reset
 
     // Draw Particles
-    const particleCount = type === 'światłowód' ? 3 : (type?.includes('cat') ? 1 : 0);
+    const isControl = type === 'Control';
+    const isFiber = type === 'światłowód';
+
+    const particleCount = isFiber ? 3 : (isControl ? 2 : 1);
     if (particleCount > 0) {
-      const time = Date.now() * (type === 'światłowód' ? 0.002 : 0.001);
+      const time = Date.now() * (isFiber ? 0.002 : (isControl ? 0.0015 : 0.001));
       for (let i = 0; i < particleCount; i++) {
-        const progress = (time + i/particleCount) % 1;
+        let progress = (time + i/particleCount) % 1;
+        
+        // Control type has a bouncing back-and-forth animation
+        if (isControl) {
+            let cycle = (time + i/particleCount) % 2;
+            progress = cycle > 1 ? 2 - cycle : cycle;
+        }
+
         const px = sX + (tX - sX) * progress;
         const py = sY + (tY - sY) * progress;
         
         ctx.beginPath();
-        ctx.arc(px, py, (type === 'światłowód' ? 2 : 1) / globalScale, 0, 2*Math.PI);
-        ctx.fillStyle = '#ffffff';
+        if (isControl) {
+          ctx.rect(px - 2.5/globalScale, py - 2.5/globalScale, 5/globalScale, 5/globalScale);
+          ctx.fillStyle = '#f43f5e';
+        } else {
+          ctx.arc(px, py, (isFiber ? 2 : 1) / globalScale, 0, 2*Math.PI);
+          ctx.fillStyle = '#ffffff';
+        }
         ctx.fill();
-        if (typeInfo.glow) {
-           ctx.shadowBlur = 5 / globalScale;
-           ctx.shadowColor = '#ffffff';
+
+        if (typeInfo.glow || isControl) {
+           ctx.shadowBlur = (isControl ? 8 : 5) / globalScale;
+           ctx.shadowColor = isControl ? '#f43f5e' : '#ffffff';
         }
       }
       ctx.shadowBlur = 0; // Reset
@@ -675,102 +701,138 @@ function App() {
           />
         </main>
 
-        {/* Bottom Panel Controls */}
-        <div className="bottom-panel">
-          {/* Column 1: Operations */}
-          <div className="panel-col">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <Layers size={18} color="var(--primary)" />
-              <h3 style={{ margin: 0, fontSize: '0.8rem' }}>Infrastructure Ops</h3>
-            </div>
-            
-            <div className="form-group">
-              <input 
-                value={newNode.name} 
-                onChange={e => setNewNode({...newNode, name: e.target.value})}
-                placeholder="Device name..."
-              />
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <select value={newNode.type} onChange={e => setNewNode({...newNode, type: e.target.value})}>
-                {Object.keys(NODE_TYPES).map(type => <option key={type} value={type}>{type}</option>)}
-              </select>
-              <select value={newNode.parentId} onChange={e => setNewNode({...newNode, parentId: e.target.value})}>
-                <option value="">No parent...</option>
-                {parentCandidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            <button style={{ marginTop: '12px' }} onClick={handleAddNode}>Create Device</button>
-
-            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <select value={newLink.source} onChange={e => setNewLink({...newLink, source: e.target.value})}>
-                  <option value="">Source...</option>
-                  {data.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
-                </select>
-                <select value={newLink.target} onChange={e => setNewLink({...newLink, target: e.target.value})}>
-                  <option value="">Target...</option>
-                  {data.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
-                </select>
-              </div>
-              <select style={{ width: '100%', marginTop: '8px' }} value={newLink.type} onChange={e => setNewLink({...newLink, type: e.target.value})}>
-                {Object.keys(LINK_TYPES).map(type => <option key={type} value={type}>{type}</option>)}
-              </select>
-              <button className="secondary" style={{ marginTop: '8px' }} onClick={handleAddLink}>Connect Devices</button>
-            </div>
-          </div>
-
-          {/* Column 2: Inventory */}
-          <div className="panel-col">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 style={{ margin: 0 }}><Activity size={18} /> Physical Inventory</h3>
-              <div style={{ position: 'relative', width: '180px' }}>
-                <Search size={14} style={{ position: 'absolute', left: '10px', top: '8px', color: '#64748b' }} />
-                <input 
-                  style={{ paddingLeft: '32px', height: '32px', fontSize: '0.75rem' }}
-                  placeholder="Search..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-            <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
-              <table className="inventory-table">
-                <thead>
-                  <tr>
-                    <th>Device Name</th>
-                    <th>Model / Type</th>
-                    <th style={{ width: '40px' }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredNodes.map(node => (
-                    <tr 
-                      key={node.id} 
-                      className={selectedNodeId === node.id ? 'highlighted' : ''}
-                      onClick={() => {
-                        setSelectedNodeId(node.id);
-                      }}
-                    >
-                      <td><div style={{ fontWeight: 600 }}>{node.name}</div></td>
-                      <td style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{node.type}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button className="delete-btn" onClick={(e) => { e.stopPropagation(); handleDeleteNode(node.id); }}>
-                          <Trash2 size={12} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <button className="full-cmdb-btn" style={{ marginTop: '12px' }} onClick={() => setShowCmdbModal(true)}>
-              View Master CMDB
-            </button>
+      {/* Floating Header */}
+      <div style={{ position: 'absolute', top: '20px', left: '20px', right: '20px', display: 'flex', justifyContent: 'space-between', zIndex: 10, pointerEvents: 'none' }}>
+        <div style={{ background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(24px)', padding: '12px 24px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '16px', pointerEvents: 'auto' }}>
+          <Network size={20} color="var(--primary)" />
+          <h1 style={{ margin: 0, fontSize: '1rem', letterSpacing: '0.1em', color: 'white' }}>NETVIS LOGIC+</h1>
+          <div style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+            Nodes: {data.nodes.length}
           </div>
         </div>
       </div>
+
+      {/* Map-Centric Floating UI - Left Sidebar */}
+      {isLeftPanelOpen && (
+        <div className="left-panel" style={{ top: '80px' }}>
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: '8px', padding: '16px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}>
+            <button 
+              className={activeLeftTab === 'ops' ? '' : 'secondary'} 
+              style={{ flex: 1, padding: '8px', fontSize: '0.7rem' }}
+              onClick={() => setActiveLeftTab('ops')}
+            >
+              <Layers size={14} /> Operations
+            </button>
+            <button 
+              className={activeLeftTab === 'inventory' ? '' : 'secondary'} 
+              style={{ flex: 1, padding: '8px', fontSize: '0.7rem' }}
+              onClick={() => setActiveLeftTab('inventory')}
+            >
+              <Activity size={14} /> Inventory
+            </button>
+          </div>
+
+          <div className="left-panel-content">
+            {activeLeftTab === 'ops' && (
+              <div style={{ animation: 'slideInLeft 0.2s' }}>
+                {/* Create Device Section */}
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 'bold', letterSpacing: '0.05em' }}>ADD NEW DEVICE</div>
+                  <div className="form-group" style={{ marginBottom: '8px' }}>
+                    <input 
+                      value={newNode.name} 
+                      onChange={e => setNewNode({...newNode, name: e.target.value})}
+                      placeholder="Device name..."
+                    />
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                    <select value={newNode.type} onChange={e => setNewNode({...newNode, type: e.target.value})}>
+                      {Object.keys(NODE_TYPES).map(type => <option key={type} value={type}>{type}</option>)}
+                    </select>
+                    <select value={newNode.parentId} onChange={e => setNewNode({...newNode, parentId: e.target.value})}>
+                      <option value="">No parent...</option>
+                      {parentCandidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={handleAddNode}>Create Device</button>
+                </div>
+
+                {/* Create Link Section */}
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 'bold', letterSpacing: '0.05em' }}>CONNECT DEVICES</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginBottom: '8px' }}>
+                    <select value={newLink.source} onChange={e => setNewLink({...newLink, source: e.target.value})} style={{ border: newLink.source === selectedNodeId ? '1px solid var(--primary)' : undefined }}>
+                      <option value="">Source Node...</option>
+                      {data.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+                    </select>
+                    <select value={newLink.target} onChange={e => setNewLink({...newLink, target: e.target.value})}>
+                      <option value="">Target Node...</option>
+                      {data.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', marginTop: '12px' }}>
+                    <select value={newLink.type} onChange={e => setNewLink({...newLink, type: e.target.value})}>
+                      {Object.keys(LINK_TYPES).map(type => <option key={type} value={type}>{type}</option>)}
+                    </select>
+                    <button className="secondary" onClick={handleAddLink}>Connect</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {activeLeftTab === 'inventory' && (
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%', animation: 'slideInLeft 0.2s' }}>
+                <div style={{ position: 'relative', marginBottom: '16px' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '8px', color: '#64748b' }} />
+                  <input 
+                    style={{ paddingLeft: '32px', height: '32px', fontSize: '0.75rem' }}
+                    placeholder="Search inventory..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                  <table className="inventory-table">
+                    <thead>
+                      <tr>
+                        <th>Device Name</th>
+                        <th>Type</th>
+                        <th style={{ width: '30px' }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredNodes.map(node => (
+                        <tr 
+                          key={node.id} 
+                          className={selectedNodeId === node.id ? 'highlighted' : ''}
+                          onClick={() => {
+                            setSelectedNodeId(node.id);
+                          }}
+                        >
+                          <td><div style={{ fontWeight: 600 }}>{node.name}</div></td>
+                          <td style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{node.type}</td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button className="delete-btn" onClick={(e) => { e.stopPropagation(); handleDeleteNode(node.id); }}>
+                              <Trash2 size={12} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button className="full-cmdb-btn" style={{ marginTop: '16px' }} onClick={() => setShowCmdbModal(true)}>
+                  View Master CMDB
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      </div> {/* Zamknięcie main-content-wrapper */}
+
 
       {/* Conditional Right Panel: Selection Details */}
       {selectedNodeId && (
