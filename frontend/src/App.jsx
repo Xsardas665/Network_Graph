@@ -51,6 +51,8 @@ function App() {
   const [activeLeftTab, setActiveLeftTab] = useState('ops');
   const [levelDistance, setLevelDistance] = useState(180);
   const [showBackground, setShowBackground] = useState(true);
+  const [schemas, setSchemas] = useState([]);
+  const [currentSchemaId, setCurrentSchemaId] = useState('');
   const fgRef = useRef();
 
   // Graph sizing
@@ -79,10 +81,26 @@ function App() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Fetch data from API
-  const fetchNetwork = async () => {
+  const fetchSchemas = useCallback(async () => {
     try {
-      const response = await fetch('/api/network');
+      const response = await fetch('/api/schemas');
+      const schemaList = await response.json();
+      setSchemas(schemaList);
+      if (schemaList.length > 0 && !currentSchemaId) {
+        // Jeśli żaden schemat nie jest wybrany, wybierz pierwszy dostępny (np. nowy "Grzybno - Całość")
+        setCurrentSchemaId(schemaList[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching schemas:', error);
+    }
+  }, [currentSchemaId]);
+
+  // Fetch data from API for current schema
+  const fetchNetwork = useCallback(async () => {
+    if (!currentSchemaId) return; // Nie pobieraj danych bez ID schematu
+    try {
+      const response = await fetch(`/api/schemas/${currentSchemaId}/network`);
+      if (!response.ok) throw new Error('Schema not found');
       const networkData = await response.json();
       setData(networkData);
       setLoading(false);
@@ -90,11 +108,38 @@ function App() {
       console.error('Error fetching network:', error);
       setLoading(false);
     }
+  }, [currentSchemaId]);
+
+  const handleCreateSchema = async () => {
+    const name = prompt('Enter name for the new schema:');
+    if (!name) return;
+    try {
+      const response = await fetch('/api/schemas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      if (response.ok) {
+        const newSchema = await response.json();
+        await fetchSchemas();
+        setCurrentSchemaId(newSchema.id);
+        showToast(`Schema "${name}" created successfully`);
+      } else {
+        const err = await response.json();
+        showToast(`Error: ${err.error}`);
+      }
+    } catch (error) {
+      showToast('Error creating schema');
+    }
   };
 
   useEffect(() => {
+    fetchSchemas();
+  }, [fetchSchemas]);
+
+  useEffect(() => {
     fetchNetwork();
-  }, []);
+  }, [fetchNetwork]);
 
   // Configure forces when engine starts/data changes
   useEffect(() => {
@@ -218,7 +263,7 @@ function App() {
     if (!newNode.name) return;
 
     try {
-      const response = await fetch('/api/nodes', {
+      const response = await fetch(`/api/schemas/${currentSchemaId}/nodes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -245,23 +290,13 @@ function App() {
     }
   };
 
-  // Add Interface to New Node state
-  const addInterfaceToNewNode = () => {
-    if (!tempInterface) return;
-    setNewNode(prev => ({
-      ...prev,
-      interfaces: [...prev.interfaces, { id: `iface_${Date.now()}`, name: tempInterface }]
-    }));
-    setTempInterface('');
-  };
-
   // Add Link
   const handleAddLink = async (e) => {
     e.preventDefault();
     if (!newLink.source || !newLink.target) return;
 
     try {
-      const response = await fetch('/api/links', {
+      const response = await fetch(`/api/schemas/${currentSchemaId}/links`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newLink),
@@ -280,7 +315,7 @@ function App() {
   const handleUpdateNode = async (updatedNode) => {
     const { __indexColor, index, x, y, vx, vy, fx, fy, __width, __height, __ports, ...sanitizedNode } = updatedNode;
     try {
-      const response = await fetch(`/api/nodes/${sanitizedNode.id}`, {
+      const response = await fetch(`/api/schemas/${currentSchemaId}/nodes/${sanitizedNode.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizedNode),
@@ -296,8 +331,9 @@ function App() {
 
   // Delete Node
   const handleDeleteNode = async (id) => {
+    if (!confirm('Are you sure you want to delete this device and all its connections?')) return;
     try {
-      await fetch(`/api/nodes/${id}`, { method: 'DELETE' });
+      await fetch(`/api/schemas/${currentSchemaId}/nodes/${id}`, { method: 'DELETE' });
       showToast('Device removed');
       if (selectedNodeId === id) setSelectedNodeId(null);
       fetchNetwork();
@@ -305,6 +341,7 @@ function App() {
       console.error('Error deleting node:', error);
     }
   };
+
   // Update Link
   const handleUpdateLink = async (linkId, updatedLink) => {
     const sanitizedLink = {
@@ -318,7 +355,7 @@ function App() {
     delete sanitizedLink.index;
 
     try {
-      const response = await fetch(`/api/links/${linkId}`, {
+      const response = await fetch(`/api/schemas/${currentSchemaId}/links/${linkId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizedLink),
@@ -334,20 +371,25 @@ function App() {
 
   // Delete Link
   const handleDeleteLink = async (linkId) => {
-    console.log('Attempting to delete link:', linkId);
     try {
-      const response = await fetch(`/api/links/${linkId}`, { method: 'DELETE' });
+      const response = await fetch(`/api/schemas/${currentSchemaId}/links/${linkId}`, { method: 'DELETE' });
       if (response.ok) {
         showToast('Connection removed');
         fetchNetwork();
-      } else {
-        console.error('Failed to delete link:', response.status);
-        showToast('Error removing connection');
       }
     } catch (error) {
       console.error('Error deleting link:', error);
-      showToast('Error removing connection');
     }
+  };
+
+  // Add Interface to New Node state
+  const addInterfaceToNewNode = () => {
+    if (!tempInterface) return;
+    setNewNode(prev => ({
+      ...prev,
+      interfaces: [...prev.interfaces, { id: `iface_${Date.now()}`, name: tempInterface }]
+    }));
+    setTempInterface('');
   };
 
   const startEditingCmdb = (node) => {
@@ -739,6 +781,39 @@ function App() {
           <div style={{ background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(24px)', padding: '12px 24px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '16px', pointerEvents: 'auto' }}>
             <Network size={20} color="var(--primary)" />
             <h1 style={{ margin: 0, fontSize: '1rem', letterSpacing: '0.1em', color: 'white' }}>NETVIS LOGIC+</h1>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '16px', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '16px' }}>
+              <select 
+                value={currentSchemaId} 
+                onChange={(e) => setCurrentSchemaId(e.target.value)}
+                style={{ 
+                  background: 'rgba(255,255,255,0.05)', 
+                  border: '1px solid rgba(255,255,255,0.1)', 
+                  color: 'white', 
+                  fontSize: '0.75rem',
+                  padding: '4px 12px',
+                  borderRadius: '8px',
+                  cursor: 'pointer'
+                }}
+              >
+                {schemas.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <button 
+                onClick={handleCreateSchema}
+                style={{ 
+                  padding: '4px 8px', 
+                  fontSize: '0.7rem', 
+                  width: 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'rgba(255,255,255,0.1)'
+                }}
+              >
+                <Plus size={14} /> New
+              </button>
+            </div>
+
             <div style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
               Nodes: {data.nodes.length}
             </div>

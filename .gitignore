@@ -126,3 +126,4 @@ dist-ssr
 
 # Database
 backend/data.json
+backend/schemas/
