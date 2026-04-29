@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { forceY, forceCollide } from 'd3-force';
-import { Plus, Trash2, Network, Share2, Activity, Search, Server, Cpu, Database, Shield, Monitor, Box, Layers, Settings2, Globe, Wifi, Hexagon, Tag, Barcode, MapPin, Zap, Calendar, Edit3, Check, X, Tv, Gamepad2, Plug, Cloud, Lightbulb, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { Plus, Trash2, Network, Share2, Activity, Search, Server, Cpu, Database, Shield, Monitor, Box, Layers, Settings2, Globe, Wifi, Hexagon, Tag, Barcode, MapPin, Zap, Calendar, Edit3, Check, X, Tv, Gamepad2, Plug, Cloud, Lightbulb, ZoomIn, ZoomOut, Maximize, Phone } from 'lucide-react';
 
 const NODE_TYPES = {
   Internet: { color: '#fbbf24', icon: Globe },
@@ -18,6 +18,7 @@ const NODE_TYPES = {
   'Maszyna Wirtualna': { color: '#c084fc', icon: Cloud },
   IOT: { color: '#f59e0b', icon: Lightbulb },
   Usługa: { color: '#f472b6', icon: Hexagon },
+  Smartfon: { color: '#3bFFF6', icon: Phone }
 };
 
 const LINK_TYPES = {
@@ -51,7 +52,7 @@ function App() {
   const [levelDistance, setLevelDistance] = useState(180);
   const [showBackground, setShowBackground] = useState(true);
   const fgRef = useRef();
-  
+
   // Graph sizing
   const [graphSize, setGraphSize] = useState({ width: 800, height: 600 });
   const mainRef = useRef(null);
@@ -114,40 +115,32 @@ function App() {
         fg.d3Force('charge').strength(node => {
           const links = nodeLinkCount[node.id] || 0;
           const level = node.level || 0;
-          // Urządzenia na niższych poziomach (Core/Router) odpychają mocniej, aby stworzyć przestrzeń
-          // Level 0: dodatkowe -4000 odpychania, Level 10: 0 dodatkowego odpychania
-          const levelRepulsion = (10 - level) * 400;
-          return -1200 - (links * 600) - levelRepulsion;
+          // Zmniejszone odpychanie, aby graf był bardziej zwarty
+          const levelRepulsion = (10 - level) * 250;
+          return -800 - (links * 400) - levelRepulsion;
         });
       }
       if (fg.d3Force('link')) {
         fg.d3Force('link')
-          .distance(200)
+          .distance(130)
           .strength(link => {
             // Fizyczne połączenia (RJ45, światłowód) są sztywniejsze (1.0), co zapobiega ich plątaniu
             // Połączenia bezprzewodowe są luźniejsze (0.2)
             const type = (link.type || '').toLowerCase();
-            if (type.includes('rj45') || type.includes('światłowód')) return 1.0;
-            if (type.includes('wifi') || type.includes('logical')) return 0.2;
-            return 0.5;
+            if (type.includes('rj45') || type.includes('światłowód')) return 1.0; // Bardzo duża siła (sztywne)
+            if (type.includes('wifi') || type.includes('zigbee')) return 0.4;     // Średnia siła
+            if (type.includes('logical') || type.includes('control')) return 0.05; // Pomijalna siła
+            return 0.2;
           });
       }
 
-      // Dodajemy siłę kolizji (forceCollide), aby węzły nie nachodziły na siebie
-      fg.d3Force('collide', forceCollide().radius(80).iterations(2));
-      
+      // Zmniejszony promień kolizji dla większej gęstości
+      fg.d3Force('collide', forceCollide().radius(60).iterations(2));
+
       // Usuwamy siłę Y (poziomy pionowe)
       fg.d3Force('y', null);
 
-      // Re-enable center force
-      const centerForce = fg.d3Force('center');
-      if (!centerForce) {
-         // If center force was nulled, we might need to re-add it or just let it be
-         // Standard force-graph handles this, but since we set it to null:
-      }
-
-      // Basic reheat without experimental methods
-      if (fg.zoomToFit) fg.zoomToFit(400); 
+      if (fg.zoomToFit) fg.zoomToFit(400);
     }
   }, [data]);
 
@@ -164,7 +157,7 @@ function App() {
         e.preventDefault();
       }
     };
-    
+
     // Prevent Safari pinch-to-zoom
     const handleGesture = (e) => {
       e.preventDefault();
@@ -193,8 +186,8 @@ function App() {
     return data.nodes.filter(node => {
       const searchLower = searchTerm.toLowerCase();
       const nodeMatch = node.name.toLowerCase().includes(searchLower) ||
-                       node.type.toLowerCase().includes(searchLower);
-      
+        node.type.toLowerCase().includes(searchLower);
+
       const cmdbMatch = node.cmdb && (
         (node.cmdb.assetTag || '').toLowerCase().includes(searchLower) ||
         (node.cmdb.serial || '').toLowerCase().includes(searchLower) ||
@@ -422,7 +415,7 @@ function App() {
         ctx.closePath();
       } else {
         const radius = 6 / globalScale;
-        ctx.arc(x, y, radius, 0, 2*Math.PI);
+        ctx.arc(x, y, radius, 0, 2 * Math.PI);
       }
       ctx.fillStyle = typeInfo.color;
       ctx.fill();
@@ -431,11 +424,11 @@ function App() {
         ctx.lineWidth = 2 / globalScale;
         ctx.stroke();
       }
-      
+
       ctx.font = `${10 / globalScale}px 'Inter'`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#f8fafc';
-      ctx.fillText(name, x, y + 15/globalScale);
+      ctx.fillText(name, x, y + 15 / globalScale);
       return;
     }
 
@@ -443,14 +436,14 @@ function App() {
     const nameFontSize = 11 / globalScale;
     ctx.font = `700 ${nameFontSize}px 'Inter'`;
     const textWidth = ctx.measureText(name).width;
-    
+
     const minWidth = 110 / globalScale;
     const padding = 24 / globalScale; // 12px padding on each side
     const width = Math.max(minWidth, textWidth + padding);
-    
+
     const headerHeight = 28 / globalScale;
     const totalHeight = 64 / globalScale;
-    
+
     node.__width = width;
     node.__height = totalHeight;
     node.__ports = {};
@@ -463,8 +456,8 @@ function App() {
 
     // Main Card Body (Subtle Gradient)
     ctx.beginPath();
-    ctx.roundRect(x - width/2, y - totalHeight/2, width, totalHeight, 8 / globalScale);
-    const bgGradient = ctx.createLinearGradient(x, y - totalHeight/2, x, y + totalHeight/2);
+    ctx.roundRect(x - width / 2, y - totalHeight / 2, width, totalHeight, 8 / globalScale);
+    const bgGradient = ctx.createLinearGradient(x, y - totalHeight / 2, x, y + totalHeight / 2);
     bgGradient.addColorStop(0, isVirtual ? '#1e293b' : '#0f172a');
     bgGradient.addColorStop(1, isVirtual ? '#0f172a' : '#020617');
     ctx.fillStyle = bgGradient;
@@ -476,11 +469,11 @@ function App() {
 
     // Header Area
     ctx.beginPath();
-    ctx.roundRect(x - width/2, y - totalHeight/2, width, headerHeight, [8/globalScale, 8/globalScale, 0, 0]);
+    ctx.roundRect(x - width / 2, y - totalHeight / 2, width, headerHeight, [8 / globalScale, 8 / globalScale, 0, 0]);
     ctx.fillStyle = `${typeInfo.color}22`;
     ctx.fill();
     ctx.strokeStyle = `${typeInfo.color}44`;
-    ctx.lineWidth = 0.5/globalScale;
+    ctx.lineWidth = 0.5 / globalScale;
     ctx.stroke();
 
     // ctx.font is already set earlier, but setting again is safe
@@ -488,13 +481,13 @@ function App() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillStyle = '#f8fafc';
-    ctx.fillText(name, x, y - totalHeight/2 + 8/globalScale);
+    ctx.fillText(name, x, y - totalHeight / 2 + 8 / globalScale);
 
     // Always show type
     const typeFontSize = 8 / globalScale;
     ctx.font = `600 ${typeFontSize}px 'Inter'`;
     ctx.fillStyle = typeInfo.color;
-    ctx.fillText(type.toUpperCase(), x, y - totalHeight/2 + headerHeight - 8/globalScale);
+    ctx.fillText(type.toUpperCase(), x, y - totalHeight / 2 + headerHeight - 8 / globalScale);
 
     const hasIp = !!node.cmdb?.ip;
     const hasVlan = !!node.cmdb?.vlan;
@@ -502,7 +495,7 @@ function App() {
     if (hasIp || hasVlan) {
       const badgeY = y + 5 / globalScale;
       const badgeH = 15 / globalScale;
-      
+
       if (hasIp && hasVlan) {
         // Unified Segmented Badge
         const ipW = 62 / globalScale;
@@ -513,7 +506,7 @@ function App() {
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(badgeX, badgeY, totalW, badgeH, 4 / globalScale);
-        ctx.clip(); 
+        ctx.clip();
 
         // IP Section (Left)
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -522,7 +515,7 @@ function App() {
         // VLAN Section (Right)
         ctx.fillStyle = 'rgba(225,29,72,0.8)'; // Modern vibrant rose
         ctx.fillRect(badgeX + ipW, badgeY, vlanW, badgeH);
-        
+
         ctx.restore();
 
         // Stroke the unified pill
@@ -535,47 +528,47 @@ function App() {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `600 ${7.5 / globalScale}px 'JetBrains Mono'`;
-        
+
         // Text
         ctx.fillStyle = '#cbd5e1';
-        ctx.fillText(node.cmdb.ip, badgeX + ipW/2, badgeY + badgeH/2);
-        
+        ctx.fillText(node.cmdb.ip, badgeX + ipW / 2, badgeY + badgeH / 2);
+
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(`VLAN ${node.cmdb.vlan}`, badgeX + ipW + vlanW/2, badgeY + badgeH/2);
+        ctx.fillText(`VLAN ${node.cmdb.vlan}`, badgeX + ipW + vlanW / 2, badgeY + badgeH / 2);
 
       } else if (hasIp) {
         // Only IP
         const badgeW = 86 / globalScale;
         ctx.beginPath();
-        ctx.roundRect(x - badgeW/2, badgeY, badgeW, badgeH, 4/globalScale);
+        ctx.roundRect(x - badgeW / 2, badgeY, badgeW, badgeH, 4 / globalScale);
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fill();
         ctx.strokeStyle = 'rgba(255,255,255,0.15)';
         ctx.lineWidth = 1 / globalScale;
         ctx.stroke();
-        
+
         ctx.font = `600 ${8 / globalScale}px 'JetBrains Mono'`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#cbd5e1';
-        ctx.fillText(node.cmdb.ip, x, badgeY + badgeH/2);
+        ctx.fillText(node.cmdb.ip, x, badgeY + badgeH / 2);
 
       } else if (hasVlan) {
         // Only VLAN
         const badgeW = 54 / globalScale;
         ctx.beginPath();
-        ctx.roundRect(x - badgeW/2, badgeY, badgeW, badgeH, 4/globalScale);
+        ctx.roundRect(x - badgeW / 2, badgeY, badgeW, badgeH, 4 / globalScale);
         ctx.fillStyle = 'rgba(225,29,72,0.8)';
         ctx.fill();
         ctx.strokeStyle = 'rgba(255,255,255,0.2)';
         ctx.lineWidth = 1 / globalScale;
         ctx.stroke();
-        
+
         ctx.font = `600 ${8 / globalScale}px 'JetBrains Mono'`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(`VLAN ${node.cmdb.vlan}`, x, badgeY + badgeH/2);
+        ctx.fillText(`VLAN ${node.cmdb.vlan}`, x, badgeY + badgeH / 2);
       }
     }
   }, [hoverNode, selectedNodeId]);
@@ -609,7 +602,7 @@ function App() {
       ctx.shadowBlur = 10 / globalScale;
       ctx.shadowColor = typeInfo.color;
     }
-    
+
     ctx.beginPath();
     ctx.moveTo(sX, sY);
     ctx.lineTo(tX, tY);
@@ -630,30 +623,30 @@ function App() {
     if (particleCount > 0) {
       const time = Date.now() * (isFiber ? 0.002 : (isControl ? 0.0015 : 0.001));
       for (let i = 0; i < particleCount; i++) {
-        let progress = (time + i/particleCount) % 1;
-        
+        let progress = (time + i / particleCount) % 1;
+
         // Control type has a bouncing back-and-forth animation
         if (isControl) {
-            let cycle = (time + i/particleCount) % 2;
-            progress = cycle > 1 ? 2 - cycle : cycle;
+          let cycle = (time + i / particleCount) % 2;
+          progress = cycle > 1 ? 2 - cycle : cycle;
         }
 
         const px = sX + (tX - sX) * progress;
         const py = sY + (tY - sY) * progress;
-        
+
         ctx.beginPath();
         if (isControl) {
-          ctx.rect(px - 2.5/globalScale, py - 2.5/globalScale, 5/globalScale, 5/globalScale);
+          ctx.rect(px - 2.5 / globalScale, py - 2.5 / globalScale, 5 / globalScale, 5 / globalScale);
           ctx.fillStyle = '#f43f5e';
         } else {
-          ctx.arc(px, py, (isFiber ? 2 : 1) / globalScale, 0, 2*Math.PI);
+          ctx.arc(px, py, (isFiber ? 2 : 1) / globalScale, 0, 2 * Math.PI);
           ctx.fillStyle = '#ffffff';
         }
         ctx.fill();
 
         if (typeInfo.glow || isControl) {
-           ctx.shadowBlur = (isControl ? 8 : 5) / globalScale;
-           ctx.shadowColor = isControl ? '#f43f5e' : '#ffffff';
+          ctx.shadowBlur = (isControl ? 8 : 5) / globalScale;
+          ctx.shadowColor = isControl ? '#f43f5e' : '#ffffff';
         }
       }
       ctx.shadowBlur = 0; // Reset
@@ -672,7 +665,7 @@ function App() {
       <div className="main-content-wrapper">
         {/* Main Graph View - Now Top Floor */}
         <main className="main-view" ref={mainRef} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-          
+
           {/* Map Controls */}
           <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button className="secondary" style={{ padding: '8px', width: 'auto', borderRadius: '8px' }} onClick={() => fgRef.current?.zoom(fgRef.current.zoom() * 1.5, 400)} title="Zoom In">
@@ -741,156 +734,156 @@ function App() {
           />
         </main>
 
-      {/* Floating Header */}
-      <div style={{ position: 'absolute', top: '20px', left: '20px', right: '20px', display: 'flex', justifyContent: 'space-between', zIndex: 10, pointerEvents: 'none' }}>
-        <div style={{ background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(24px)', padding: '12px 24px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '16px', pointerEvents: 'auto' }}>
-          <Network size={20} color="var(--primary)" />
-          <h1 style={{ margin: 0, fontSize: '1rem', letterSpacing: '0.1em', color: 'white' }}>NETVIS LOGIC+</h1>
-          <div style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-            Nodes: {data.nodes.length}
+        {/* Floating Header */}
+        <div style={{ position: 'absolute', top: '20px', left: '20px', right: '20px', display: 'flex', justifyContent: 'space-between', zIndex: 10, pointerEvents: 'none' }}>
+          <div style={{ background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(24px)', padding: '12px 24px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '16px', pointerEvents: 'auto' }}>
+            <Network size={20} color="var(--primary)" />
+            <h1 style={{ margin: 0, fontSize: '1rem', letterSpacing: '0.1em', color: 'white' }}>NETVIS LOGIC+</h1>
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              Nodes: {data.nodes.length}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Map-Centric Floating UI - Left Sidebar */}
-      {isLeftPanelOpen && (
-        <div className="left-panel" style={{ top: '80px' }}>
-          {/* Tabs */}
-          <div style={{ display: 'flex', gap: '8px', padding: '16px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}>
-            <button 
-              className={activeLeftTab === 'ops' ? '' : 'secondary'} 
-              style={{ flex: 1, padding: '8px', fontSize: '0.7rem' }}
-              onClick={() => setActiveLeftTab('ops')}
-            >
-              <Layers size={14} /> Operations
-            </button>
-            <button 
-              className={activeLeftTab === 'inventory' ? '' : 'secondary'} 
-              style={{ flex: 1, padding: '8px', fontSize: '0.7rem' }}
-              onClick={() => setActiveLeftTab('inventory')}
-            >
-              <Activity size={14} /> Inventory
-            </button>
-          </div>
+        {/* Map-Centric Floating UI - Left Sidebar */}
+        {isLeftPanelOpen && (
+          <div className="left-panel" style={{ top: '80px' }}>
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: '8px', padding: '16px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}>
+              <button
+                className={activeLeftTab === 'ops' ? '' : 'secondary'}
+                style={{ flex: 1, padding: '8px', fontSize: '0.7rem' }}
+                onClick={() => setActiveLeftTab('ops')}
+              >
+                <Layers size={14} /> Operations
+              </button>
+              <button
+                className={activeLeftTab === 'inventory' ? '' : 'secondary'}
+                style={{ flex: 1, padding: '8px', fontSize: '0.7rem' }}
+                onClick={() => setActiveLeftTab('inventory')}
+              >
+                <Activity size={14} /> Inventory
+              </button>
+            </div>
 
-          <div className="left-panel-content">
-            {activeLeftTab === 'ops' && (
-              <div style={{ animation: 'slideInLeft 0.2s' }}>
-                {/* Create Device Section */}
-                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 'bold', letterSpacing: '0.05em' }}>ADD NEW DEVICE</div>
-                  <div className="form-group" style={{ marginBottom: '8px' }}>
-                    <input 
-                      value={newNode.name} 
-                      onChange={e => setNewNode({...newNode, name: e.target.value})}
-                      placeholder="Device name..."
-                    />
-                  </div>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-                    <select value={newNode.type} onChange={e => setNewNode({...newNode, type: e.target.value})}>
-                      {Object.keys(NODE_TYPES).map(type => <option key={type} value={type}>{type}</option>)}
-                    </select>
-                    <select value={newNode.parentId} onChange={e => setNewNode({...newNode, parentId: e.target.value})}>
-                      <option value="">No parent...</option>
-                      {parentCandidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  
-                  <div style={{ marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      <span>HIERARCHY LEVEL: {newNode.level || 0}</span>
+            <div className="left-panel-content">
+              {activeLeftTab === 'ops' && (
+                <div style={{ animation: 'slideInLeft 0.2s' }}>
+                  {/* Create Device Section */}
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '16px' }}>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 'bold', letterSpacing: '0.05em' }}>ADD NEW DEVICE</div>
+                    <div className="form-group" style={{ marginBottom: '8px' }}>
+                      <input
+                        value={newNode.name}
+                        onChange={e => setNewNode({ ...newNode, name: e.target.value })}
+                        placeholder="Device name..."
+                      />
                     </div>
-                    <input 
-                      type="range" min="0" max="10" step="1"
-                      value={newNode.level || 0}
-                      onChange={e => setNewNode({...newNode, level: parseInt(e.target.value)})}
-                      style={{ width: '100%', accentColor: 'var(--primary)' }}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                      <select value={newNode.type} onChange={e => setNewNode({ ...newNode, type: e.target.value })}>
+                        {Object.keys(NODE_TYPES).map(type => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                      <select value={newNode.parentId} onChange={e => setNewNode({ ...newNode, parentId: e.target.value })}>
+                        <option value="">No parent...</option>
+                        {parentCandidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                        <span>HIERARCHY LEVEL: {newNode.level || 0}</span>
+                      </div>
+                      <input
+                        type="range" min="0" max="10" step="1"
+                        value={newNode.level || 0}
+                        onChange={e => setNewNode({ ...newNode, level: parseInt(e.target.value) })}
+                        style={{ width: '100%', accentColor: 'var(--primary)' }}
+                      />
+                    </div>
+                    <button onClick={handleAddNode}>Create Device</button>
+                  </div>
+
+                  {/* Create Link Section */}
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 'bold', letterSpacing: '0.05em' }}>CONNECT DEVICES</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginBottom: '8px' }}>
+                      <select value={newLink.source} onChange={e => setNewLink({ ...newLink, source: e.target.value })} style={{ border: newLink.source === selectedNodeId ? '1px solid var(--primary)' : undefined }}>
+                        <option value="">Source Node...</option>
+                        {data.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+                      </select>
+                      <select value={newLink.target} onChange={e => setNewLink({ ...newLink, target: e.target.value })}>
+                        <option value="">Target Node...</option>
+                        {data.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', marginTop: '12px' }}>
+                      <select value={newLink.type} onChange={e => setNewLink({ ...newLink, type: e.target.value })}>
+                        {Object.keys(LINK_TYPES).map(type => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                      <button className="secondary" onClick={handleAddLink}>Connect</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeLeftTab === 'inventory' && (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', animation: 'slideInLeft 0.2s' }}>
+                  <div style={{ position: 'relative', marginBottom: '16px' }}>
+                    <Search size={14} style={{ position: 'absolute', left: '10px', top: '8px', color: '#64748b' }} />
+                    <input
+                      style={{ paddingLeft: '32px', height: '32px', fontSize: '0.75rem' }}
+                      placeholder="Search inventory..."
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  <button onClick={handleAddNode}>Create Device</button>
-                </div>
-
-                {/* Create Link Section */}
-                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 'bold', letterSpacing: '0.05em' }}>CONNECT DEVICES</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginBottom: '8px' }}>
-                    <select value={newLink.source} onChange={e => setNewLink({...newLink, source: e.target.value})} style={{ border: newLink.source === selectedNodeId ? '1px solid var(--primary)' : undefined }}>
-                      <option value="">Source Node...</option>
-                      {data.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
-                    </select>
-                    <select value={newLink.target} onChange={e => setNewLink({...newLink, target: e.target.value})}>
-                      <option value="">Target Node...</option>
-                      {data.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', marginTop: '12px' }}>
-                    <select value={newLink.type} onChange={e => setNewLink({...newLink, type: e.target.value})}>
-                      {Object.keys(LINK_TYPES).map(type => <option key={type} value={type}>{type}</option>)}
-                    </select>
-                    <button className="secondary" onClick={handleAddLink}>Connect</button>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {activeLeftTab === 'inventory' && (
-              <div style={{ display: 'flex', flexDirection: 'column', height: '100%', animation: 'slideInLeft 0.2s' }}>
-                <div style={{ position: 'relative', marginBottom: '16px' }}>
-                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '8px', color: '#64748b' }} />
-                  <input 
-                    style={{ paddingLeft: '32px', height: '32px', fontSize: '0.75rem' }}
-                    placeholder="Search inventory..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <div style={{ flex: 1, overflowY: 'auto' }}>
-                  <table className="inventory-table">
-                    <thead>
-                      <tr>
-                        <th>Device Name</th>
-                        <th>Type</th>
-                        <th style={{ width: '30px' }}></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredNodes.map(node => (
-                        <tr 
-                          key={node.id} 
-                          className={selectedNodeId === node.id ? 'highlighted' : ''}
-                          onClick={() => {
-                            setSelectedNodeId(node.id);
-                          }}
-                        >
-                          <td><div style={{ fontWeight: 600 }}>{node.name}</div></td>
-                          <td style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{node.type}</td>
-                          <td style={{ textAlign: 'right' }}>
-                            <button className="delete-btn" onClick={(e) => { e.stopPropagation(); handleDeleteNode(node.id); }}>
-                              <Trash2 size={12} />
-                            </button>
-                          </td>
+                  <div style={{ flex: 1, overflowY: 'auto' }}>
+                    <table className="inventory-table">
+                      <thead>
+                        <tr>
+                          <th>Device Name</th>
+                          <th>Type</th>
+                          <th style={{ width: '30px' }}></th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredNodes.map(node => (
+                          <tr
+                            key={node.id}
+                            className={selectedNodeId === node.id ? 'highlighted' : ''}
+                            onClick={() => {
+                              setSelectedNodeId(node.id);
+                            }}
+                          >
+                            <td><div style={{ fontWeight: 600 }}>{node.name}</div></td>
+                            <td style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{node.type}</td>
+                            <td style={{ textAlign: 'right' }}>
+                              <button className="delete-btn" onClick={(e) => { e.stopPropagation(); handleDeleteNode(node.id); }}>
+                                <Trash2 size={12} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <button className="full-cmdb-btn" style={{ marginTop: '16px' }} onClick={() => setShowCmdbModal(true)}>
+                    View Master CMDB
+                  </button>
                 </div>
-                <button className="full-cmdb-btn" style={{ marginTop: '16px' }} onClick={() => setShowCmdbModal(true)}>
-                  View Master CMDB
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
       </div> {/* Zamknięcie main-content-wrapper */}
 
 
       {/* Conditional Right Panel: Selection Details */}
       {selectedNodeId && (
         <aside className="right-panel">
-          <DeviceDetails 
-            node={data.nodes.find(n => n.id === selectedNodeId)} 
+          <DeviceDetails
+            node={data.nodes.find(n => n.id === selectedNodeId)}
             links={data.links}
             onClose={() => setSelectedNodeId(null)}
             onUpdate={handleUpdateNode}
@@ -932,17 +925,17 @@ function App() {
                   {data.nodes.map(node => {
                     const isEditing = editingCmdbId === node.id;
                     const displayData = isEditing ? tempCmdbData : (node.cmdb || {});
-                    
+
                     return (
                       <tr key={node.id} className={isEditing ? 'editing-row' : ''}>
                         <td style={{ fontWeight: 600 }}>{node.name}</td>
                         <td><span style={{ fontSize: '0.75rem', opacity: 0.7 }}>{node.type}</span></td>
-                        
+
                         <td>
                           {isEditing ? (
-                            <input 
+                            <input
                               className="table-input"
-                              value={displayData.assetTag || ''} 
+                              value={displayData.assetTag || ''}
                               onChange={e => handleInlineCmdbChange('assetTag', e.target.value)}
                               placeholder="Asset Tag"
                             />
@@ -953,9 +946,9 @@ function App() {
 
                         <td>
                           {isEditing ? (
-                            <input 
+                            <input
                               className="table-input"
-                              value={displayData.serial || ''} 
+                              value={displayData.serial || ''}
                               onChange={e => handleInlineCmdbChange('serial', e.target.value)}
                               placeholder="Serial"
                             />
@@ -966,9 +959,9 @@ function App() {
 
                         <td>
                           {isEditing ? (
-                            <input 
+                            <input
                               className="table-input"
-                              value={displayData.vendor || ''} 
+                              value={displayData.vendor || ''}
                               onChange={e => handleInlineCmdbChange('vendor', e.target.value)}
                               placeholder="Vendor"
                             />
@@ -979,9 +972,9 @@ function App() {
 
                         <td>
                           {isEditing ? (
-                            <input 
+                            <input
                               className="table-input"
-                              value={displayData.model || ''} 
+                              value={displayData.model || ''}
                               onChange={e => handleInlineCmdbChange('model', e.target.value)}
                               placeholder="Model"
                             />
@@ -992,7 +985,7 @@ function App() {
 
                         <td>
                           {isEditing ? (
-                            <select 
+                            <select
                               className="table-input"
                               value={displayData.status || 'production'}
                               onChange={e => handleInlineCmdbChange('status', e.target.value)}
@@ -1013,9 +1006,9 @@ function App() {
 
                         <td>
                           {isEditing ? (
-                            <input 
+                            <input
                               className="table-input"
-                              value={displayData.vlan || ''} 
+                              value={displayData.vlan || ''}
                               onChange={e => handleInlineCmdbChange('vlan', e.target.value)}
                               placeholder="VLAN"
                             />
@@ -1028,9 +1021,9 @@ function App() {
 
                         <td>
                           {isEditing ? (
-                            <input 
+                            <input
                               className="table-input"
-                              value={displayData.location || ''} 
+                              value={displayData.location || ''}
                               onChange={e => handleInlineCmdbChange('location', e.target.value)}
 
                               placeholder="Location"
@@ -1056,7 +1049,7 @@ function App() {
                                 <button className="edit-mini-btn" onClick={() => startEditingCmdb(node)} title="Edit Device">
                                   <Edit3 size={16} />
                                 </button>
-                                <button 
+                                <button
                                   className="goto-btn"
                                   onClick={() => {
                                     setSelectedNodeId(node.id);
@@ -1086,7 +1079,7 @@ function App() {
 // Sub-component for Device Details
 function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink, onUpdateLink }) {
   const [activeTab, setActiveTab] = useState('network'); // 'network' or 'cmdb'
-  
+
   // Ensure we always have an absolute copy with initialized arrays and objects
   const [editedNode, setEditedNode] = useState(() => ({
     ...node,
@@ -1129,14 +1122,14 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
   if (!node) return null;
 
   const handleIpChange = (ifaceId, newIp) => {
-    const updatedInterfaces = editedNode.interfaces.map(iface => 
+    const updatedInterfaces = editedNode.interfaces.map(iface =>
       iface.id === ifaceId ? { ...iface, ip: newIp } : iface
     );
     setEditedNode({ ...editedNode, interfaces: updatedInterfaces });
   };
 
   const handleNameChange = (ifaceId, newName) => {
-    const updatedInterfaces = editedNode.interfaces.map(iface => 
+    const updatedInterfaces = editedNode.interfaces.map(iface =>
       iface.id === ifaceId ? { ...iface, name: newName } : iface
     );
     setEditedNode({ ...editedNode, interfaces: updatedInterfaces });
@@ -1155,9 +1148,9 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
   };
 
   const removeInterface = (ifaceId) => {
-    setEditedNode({ 
-      ...editedNode, 
-      interfaces: editedNode.interfaces.filter(i => i.id !== ifaceId) 
+    setEditedNode({
+      ...editedNode,
+      interfaces: editedNode.interfaces.filter(i => i.id !== ifaceId)
     });
   };
 
@@ -1199,14 +1192,14 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
 
       {/* Tabs Switcher */}
       <div className="tabs">
-        <button 
+        <button
           className={`tab ${activeTab === 'network' ? 'active' : ''}`}
           onClick={() => setActiveTab('network')}
         >
           <Network size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
           Network
         </button>
-        <button 
+        <button
           className={`tab ${activeTab === 'cmdb' ? 'active' : ''}`}
           onClick={() => setActiveTab('cmdb')}
         >
@@ -1221,19 +1214,19 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {(editedNode.interfaces || []).map(iface => (
               <div key={iface.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 40px', gap: '8px', alignItems: 'center' }}>
-                <input 
-                  value={iface.name} 
+                <input
+                  value={iface.name}
                   onChange={e => handleNameChange(iface.id, e.target.value)}
                   placeholder="Name"
                   style={{ padding: '6px 10px', fontSize: '0.75rem' }}
                 />
-                <input 
-                  value={iface.ip || ''} 
+                <input
+                  value={iface.ip || ''}
                   onChange={e => handleIpChange(iface.id, e.target.value)}
                   placeholder="IP Address"
                   style={{ padding: '6px 10px', fontSize: '0.75rem', fontFamily: 'JetBrains Mono' }}
                 />
-                <button 
+                <button
                   onClick={() => removeInterface(iface.id)}
                   className="delete-btn"
                   style={{ padding: '4px' }}
@@ -1252,10 +1245,10 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
               <span>HIERARCHY LEVEL</span>
               <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{editedNode.level || 0}</span>
             </div>
-            <input 
+            <input
               type="range" min="0" max="10" step="1"
               value={editedNode.level || 0}
-              onChange={e => setEditedNode({...editedNode, level: parseInt(e.target.value)})}
+              onChange={e => setEditedNode({ ...editedNode, level: parseInt(e.target.value) })}
               style={{ width: '100%', accentColor: 'var(--primary)', marginBottom: '12px' }}
             />
           </div>
@@ -1271,11 +1264,11 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
                 const sId = typeof link.source === 'object' ? link.source.id : link.source;
                 const tId = typeof link.target === 'object' ? link.target.id : link.target;
                 const isSource = sId === node.id;
-                
+
                 const otherNodeId = isSource ? tId : sId;
                 // Try to find the name of the other node from the data
                 const otherNode = links[0]?.source?.name ? (isSource ? link.target : link.source) : { name: otherNodeId };
-                
+
                 const myPort = isSource ? link.sourceInterface : link.targetInterface;
                 const theirPort = isSource ? link.targetInterface : link.sourceInterface;
 
@@ -1283,17 +1276,17 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
                   <div key={link.id} className="glass-card" style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontSize: '0.75rem' }}>
-                        <span style={{ color: '#6366f1', fontWeight: 600 }}>{myPort || '?' }</span>
+                        <span style={{ color: '#6366f1', fontWeight: 600 }}>{myPort || '?'}</span>
                         <span style={{ margin: '0 8px', color: '#475569' }}>↔</span>
                         <span>{otherNode.name || otherNodeId}</span>
                         <span style={{ marginLeft: '4px', color: '#64748b', fontSize: '0.65rem' }}>({theirPort || '?'})</span>
                         <div style={{ marginTop: '4px', color: LINK_TYPES[link.type]?.color || '#94a3b8', fontSize: '0.65rem' }}>
-                          <select 
+                          <select
                             value={link.type || 'RJ45 cat6'}
                             onChange={(e) => onUpdateLink(link.id, { ...link, type: e.target.value })}
-                            style={{ 
-                              background: 'transparent', 
-                              border: '1px solid rgba(255,255,255,0.2)', 
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid rgba(255,255,255,0.2)',
                               color: 'inherit',
                               fontSize: '0.65rem',
                               padding: '2px 4px',
@@ -1302,13 +1295,13 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
                               cursor: 'pointer'
                             }}
                           >
-                            {Object.keys(LINK_TYPES).map(t => <option key={t} value={t} style={{color: '#000'}}>{t}</option>)}
+                            {Object.keys(LINK_TYPES).map(t => <option key={t} value={t} style={{ color: '#000' }}>{t}</option>)}
                           </select>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => onDeleteLink(link.id)} 
-                        className="delete-btn" 
+                      <button
+                        onClick={() => onDeleteLink(link.id)}
+                        className="delete-btn"
                         style={{ padding: '6px', width: '28px', height: '28px' }}
                         title="Remove Connection"
                       >
@@ -1323,10 +1316,10 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
                 const tId = typeof l.target === 'object' ? l.target.id : l.target;
                 return sId === node.id || tId === node.id;
               }).length === 0 && (
-                <div style={{ fontSize: '0.75rem', color: '#64748b', textAlign: 'center', padding: '10px' }}>
-                  No active connections
-                </div>
-              )}
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textAlign: 'center', padding: '10px' }}>
+                    No active connections
+                  </div>
+                )}
             </div>
           </div>
         </section>
@@ -1336,16 +1329,16 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
           <div className="cmdb-grid">
             <div className="cmdb-field">
               <label><Tag size={12} /> Asset Tag</label>
-              <input 
-                value={editedNode.cmdb.assetTag} 
+              <input
+                value={editedNode.cmdb.assetTag}
                 onChange={e => handleCmdbChange('assetTag', e.target.value)}
                 placeholder="e.g. NET-V-001"
               />
             </div>
             <div className="cmdb-field">
               <label><Barcode size={12} /> Serial Number</label>
-              <input 
-                value={editedNode.cmdb.serial} 
+              <input
+                value={editedNode.cmdb.serial}
                 onChange={e => handleCmdbChange('serial', e.target.value)}
                 placeholder="SN-XXXX-XXXX"
               />
@@ -1353,16 +1346,16 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="cmdb-field">
                 <label><Layers size={12} /> Vendor</label>
-                <input 
-                  value={editedNode.cmdb.vendor} 
+                <input
+                  value={editedNode.cmdb.vendor}
                   onChange={e => handleCmdbChange('vendor', e.target.value)}
                   placeholder="e.g. Cisco"
                 />
               </div>
               <div className="cmdb-field">
                 <label><Monitor size={12} /> Model</label>
-                <input 
-                  value={editedNode.cmdb.model} 
+                <input
+                  value={editedNode.cmdb.model}
                   onChange={e => handleCmdbChange('model', e.target.value)}
                   placeholder="e.g. C9200-24T"
                 />
@@ -1370,8 +1363,8 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
             </div>
             <div className="cmdb-field">
               <label><Zap size={12} /> Status</label>
-              <select 
-                value={editedNode.cmdb.status} 
+              <select
+                value={editedNode.cmdb.status}
                 onChange={e => handleCmdbChange('status', e.target.value)}
                 style={{ background: 'transparent', padding: '0', border: 'none', width: '100%', fontSize: '0.85rem' }}
               >
@@ -1383,24 +1376,24 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
             </div>
             <div className="cmdb-field">
               <label><MapPin size={12} /> Location</label>
-              <input 
-                value={editedNode.cmdb.location} 
+              <input
+                value={editedNode.cmdb.location}
                 onChange={e => handleCmdbChange('location', e.target.value)}
                 placeholder="e.g. DataCenter 1, Rack B"
               />
             </div>
             <div className="cmdb-field">
               <label><Globe size={12} /> Management Address (IP)</label>
-              <input 
-                value={editedNode.cmdb.ip || ''} 
+              <input
+                value={editedNode.cmdb.ip || ''}
                 onChange={e => handleCmdbChange('ip', e.target.value)}
                 placeholder="e.g. 192.168.1.1"
               />
             </div>
             <div className="cmdb-field">
               <label><Layers size={12} /> VLAN Segment ID</label>
-              <input 
-                value={editedNode.cmdb.vlan || ''} 
+              <input
+                value={editedNode.cmdb.vlan || ''}
                 onChange={e => handleCmdbChange('vlan', e.target.value)}
                 placeholder="e.g. 10"
               />
@@ -1409,7 +1402,7 @@ function DeviceDetails({ node, links, onClose, onUpdate, onDelete, onDeleteLink,
         </section>
       )}
 
-      <button 
+      <button
         onClick={() => onUpdate(editedNode)}
         style={{ marginTop: '24px', background: 'var(--success)' }}
       >
