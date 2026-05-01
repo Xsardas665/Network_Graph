@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { forceY, forceCollide } from 'd3-force';
-import { Plus, Trash2, Network, Share2, Activity, Search, Server, Cpu, Database, Shield, Monitor, Box, Layers, Settings2, Globe, Wifi, Hexagon, Tag, Barcode, MapPin, Zap, Calendar, Edit3, Check, X, Tv, Gamepad2, Plug, Cloud, Lightbulb, ZoomIn, ZoomOut, Maximize, Phone } from 'lucide-react';
+import { Plus, Trash2, Network, Share2, Activity, Search, Server, Cpu, Database, Shield, Monitor, Box, Layers, Settings2, Globe, Wifi, Hexagon, Tag, Barcode, MapPin, Zap, Calendar, Edit3, Check, X, Tv, Gamepad2, Plug, Cloud, Lightbulb, ZoomIn, ZoomOut, Maximize, Phone, RefreshCcw } from 'lucide-react';
 
 const NODE_TYPES = {
   Internet: { color: '#fbbf24', icon: Globe },
@@ -814,8 +814,23 @@ function App() {
               </button>
             </div>
 
-            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-              Nodes: {data.nodes.length}
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>Nodes: {data.nodes.length}</span>
+              <button 
+                onClick={() => fetchNetwork()} 
+                title="Refresh Graph Data"
+                style={{ 
+                  background: 'transparent', 
+                  padding: '2px', 
+                  width: 'auto', 
+                  height: 'auto',
+                  display: 'flex',
+                  color: loading ? 'var(--primary)' : 'inherit',
+                  animation: loading ? 'spin 1s linear infinite' : 'none'
+                }}
+              >
+                <RefreshCcw size={12} />
+              </button>
             </div>
           </div>
         </div>

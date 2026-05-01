@@ -533,3 +533,8 @@ tr:hover td {
 .editing-row td {
   border-bottom-color: var(--primary) !important;
 }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
